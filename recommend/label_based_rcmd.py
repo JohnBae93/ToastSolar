@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 major_urls = ["scos.skku", "liberalarts.skku", "law.skku", "sscience.skku", "ecostat.skku",
               "biz.skku", "coe.skku", "art.skku", "cscience.skku", "icc.skku", "cs.skku",
@@ -128,18 +129,22 @@ class Curation:
         self.property_label[8] = 1
 
 
+# belong [1학기, 2학기, 3학기, 4학기, 5학기, 6학기, 7학기, 8학기, 초과학기] 17~25
+# property [장학금, 대외활동, 대학원, 취업, 인턴, 학사일정, 특강, 교환학생, 기타] 0~8
 class User:
     def __init__(self, _majors, _semester, _attend):
         self.belong_label = np.zeros(29, dtype=np.float32)
         self.property_label = np.zeros(9, dtype=np.float32)
 
         self.majors = _majors
-        self.semester = _semester
+        self.semester = int(_semester)
         self.attend = _attend
 
         self.labelling_major()
         self.labelling_semester()
         self.labelling_attend()
+
+        self.labeling_property()
 
     def labelling_major(self):
         for major in self.majors:
@@ -162,21 +167,108 @@ class User:
         if self.semester >= 7:
             self.belong_label[28] = 1
 
-majors = ['정보통신대학-', '소프트웨어대학-']
-label=np.zeros(29, dtype=np.uint8)
-for major in majors:
-    for name in major_names:
-        if name in major:
-            label[major_names.index(name)] = 1
+    def labeling_property(self):
+        # 1학년
+        if self.semester == 1 or self.semester == 2:
+            self.property_label[5] = 1
+            self.property_label[8] = 1
+        # 2학년
+        elif self.semester == 3 or self.semester == 4:
+            self.property_label[0] = 1
+            self.property_label[1] = 1
+            self.property_label[5] = 1
+            self.property_label[6] = 1
+        # 3학년
+        elif self.semester == 5 or self.semester == 6:
+            self.property_label[0] = 1
+            self.property_label[1] = 1
+            self.property_label[5] = 1
+            self.property_label[6] = 1
+            self.property_label[7] = 1
+        # 4학년
+        elif self.semester == 7 or self.semester == 8:
+            self.property_label[2] = 1
+            self.property_label[3] = 1
+            self.property_label[4] = 1
+            self.property_label[5] = 1
 
-fr = open('data.txt', 'r', encoding='utf-8')
-lines = fr.readlines()
+        else:
+            self.property_label[3] = 1
+            self.property_label[4] = 1
+            self.property_label[5] = 1
+
+
+fr = open('../data.txt', 'r', encoding='utf-8')
+
+data_lines = fr.readlines()
 curations = []
-for line in lines:
+for line in data_lines:
     curation = Curation(line)
     curations.append(curation)
+fr.close()
+# print(lines[2])
+# np.set_printoptions(threshold=np.nan)
+# print(curations[2].belong_label)
+# print(curations[2].property_label)
 
-print(lines[2])
+fr = open('users', 'r')
+user_lines = fr.readlines()
+users = []
+for line in user_lines:
+    content = line.split(" ")
+    user_majors = []
+    user_majors.append(content[0])
+    if content[1].isdigit() == False:
+        user_majors.append(content[1])
+        user_semester = content[2]
+        if content[3] == '재학':
+            user_attend = '예'
+        else:
+            user_attend = '아니오'
+    else:
+        user_semester = content[1]
+        if content[2] == '재학':
+            user_attend = '예'
+        else:
+            user_attend = '아니오'
+
+    user = User(user_majors, user_semester, user_attend)
+    users.append(user)
+fr.close()
+
+user_num = len(users)
+curation_num = len(curations)
+
+print((user_num, curation_num))
+# print(user)
+
+print(users[0].property_label)
+
+similarity_matrix = np.zeros((user_num, curation_num), dtype=np.float32)
+print(similarity_matrix.shape)
+i = 0
+j = 0
+for user in users:
+    for curation in curations:
+        similarity_matrix[i][j] = pearson_similarity(np.concatenate((user.belong_label, user.property_label)),
+                                                     np.concatenate((curation.belong_label, curation.property_label)))
+        j = j + 1
+    j = 0
+    i = i + 1
+
+for i in range(0, user_num):
+    for j in range(0, curation_num):
+        score = similarity_matrix[i][j]
+        if score < 0.7:
+            print("user : {} , curation : {}, score : {}, text : {} ".format(i + 1, j + 1, similarity_matrix[i][j],
+                                                                             data_lines[j][12:40]))
+
 np.set_printoptions(threshold=np.nan)
-print(curations[2].belong_label)
-print(curations[2].property_label)
+print(similarity_matrix.mean())
+similarity_matrix_1d = similarity_matrix.reshape(user_num*curation_num)
+print("max : {}".format(similarity_matrix_1d.max()))
+# print(similarity_matrix_1d)
+plt.plot(similarity_matrix, '.')
+plt.axis([0, 9, 0.4, 1])
+plt.show()
+# print(similarity_matrix)
