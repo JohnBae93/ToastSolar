@@ -3,11 +3,11 @@ import numpy as np
 from keras.datasets import mnist
 from matplotlib import pyplot as plt
 from keras.utils import np_utils
-from keras.layers import Conv2D, MaxPooling2D, Convolution2D
+from keras.layers import Conv2D, MaxPooling2D
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras import losses
-Convolution2D
+
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
 # plt.imshow(X_train[0])

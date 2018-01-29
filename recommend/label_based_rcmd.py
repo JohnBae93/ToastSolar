@@ -272,3 +272,7 @@ plt.plot(similarity_matrix, '.')
 plt.axis([0, 9, 0.4, 1])
 plt.show()
 # print(similarity_matrix)
+
+# tr  : movie_id, user_id, rating.
+model.fit([tr[:,0].reshape((L,1)), tr[:,1].reshape((L,1))], tr[:,2].reshape((L,1)),
+          batch_size=24000, nb_epoch=42, validation_data=([ ts[:,0].reshape((M,1)), ts[:,0].reshape((M,1))], ts[:,2].reshape((M,1))))
