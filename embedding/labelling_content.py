@@ -12,66 +12,91 @@ labelling: on-hot
 2.Property -> 이 글이 어떤 속성을 가지고 있는가
 [장학금, 대외활동, 대학원, 취업, 인턴, 학사일정, 특강, 교환학생, 기타] 9
 """
+import re
+
 import numpy as np
 import json
 from collections import OrderedDict
 
-
+"""
+SETTING
+"""
 majors = ["scos.skku", "liberalarts.skku", "law.skku", "sscience.skku", "ecostat.skku",
           "biz.skku", "coe.skku", "art.skku", "cscience.skku", "icc.skku", "cs.skku",
           "shb.skku", "pharm.skku", "biotech.skku", "sport.skku", "skkumed.skku", "icon.skku"]
 
 # json file path
-belong_json_file = '../content_belong_label_keyword'
-property_json_file = '../content_property_label_keyword'
+belong_json_file = '../content_belong_label_keyword.json'
+property_json_file = '../content_property_label_keyword.json'
 
-# json data
-belong_json_data = open(belong_json_file).read()
-property_json_data = open(property_json_file).read()
+
+def load_data(filename):
+    file_content = open(filename).read()
+    data_list = json.loads(file_content)
+    data_list.sort(key=lambda x: x["label"])
+    return data_list
+
+
+def check_keywords(data, line):
+    try:
+        diff_mode = data["keywords"]["type"]
+    except Exception as e:
+        print(data)
+        raise Exception("Cannot read keyword type at data {}".format(data))
+
+    p_match_word = re.compile(r"[가-힣A-Za-z0-9]")
+
+    for keyword in data["keywords"]["list"]:
+        if diff_mode == "EXACT":
+            return keyword in line
+        elif diff_mode == "INCLUDE_LETTER":
+            new_line = "".join(p_match_word.findall(line))
+            new_keyword = "".join(p_match_word.findall(keyword))
+            return new_keyword in new_line
+
+    return False
+
 
 # dictionary data
-belong_dict = json.loads(belong_json_data)
-property_dict = json.loads(property_json_data)
-belong_dict = OrderedDict(sorted(belong_dict.items(), key=lambda t: t[0]))
-property_dict = OrderedDict(sorted(property_dict.items(), key=lambda t: t[0]))
+belong_data = load_data(belong_json_file)
+property_data = load_data(property_json_file)
+
 # print(belong_dict)
-print(tuple(belong_dict.keys()))
-print(tuple(property_dict.keys()))
+print(tuple(belong_data))
+print(tuple(property_data))
 
 # print(len(belong_label))
+input_file = open('../data.txt', 'r')
+belong_file = open('../data_belong_label.txt', 'w')
+property_file = open('../data_property_label.txt', 'w')
 
-fr = open('../data.txt', 'r')
-fbw = open('../data_belong_label.txt', 'w')
-fpw = open('../data_property_label.txt', 'w')
-
-lines = fr.readlines()
+lines = input_file.readlines()
 
 '''Belong'''
 for line in lines:
-    belong_label = np.zeros(len(belong_dict), dtype=np.uint8)
-    property_label = np.zeros(len(property_dict), dtype=np.uint8)
-    for i, values in enumerate(belong_dict.values()):
-        for value in values:
-            if value in line:
-                belong_label[i] = 1
-    for j, values in enumerate(property_dict.values()):
-        for value in values:
-            if value in line:
-                property_label[j] = 1
-    fbw.write(' '.join(str(i) for i in belong_label))
-    fbw.write('\n')
-    fpw.write(' '.join(str(i) for i in property_label))
-    fpw.write('\n')
+    belong_label = np.zeros(len(belong_data), dtype=np.uint8)
+    property_label = np.zeros(len(property_data), dtype=np.uint8)
 
-fr.close()
-fbw.close()
-fpw.close()
+    for i, data in enumerate(belong_data):
+        if check_keywords(data, line):
+            belong_label[i] = 1
+
+    for i, data in enumerate(property_data):
+        if check_keywords(data, line):
+            property_label[i] = 1
+
+    belong_file.write(' '.join(str(i) for i in belong_label))
+    belong_file.write('\n')
+    property_file.write(' '.join(str(i) for i in property_label))
+    property_file.write('\n')
+
+input_file.close()
+belong_file.close()
+property_file.close()
 
 
 
 '''Property'''
-
-
 # fr = open('../data.txt', 'r')
 # fbw = open('../data_belong_label.txt', 'w')
 # fpw = open('../data_property_label.txt', 'w')
@@ -96,3 +121,12 @@ fpw.close()
 # fr.close()
 # fbw.close()
 # fpw.close()
+
+
+
+"""
+Convert
+
+from : /"([^"]+)":..\s+((("[^"]+"),?\s*)+)/g
+to : {"label":"$1", \n "keywords": {\n  "type":"EXACT",\n  "list": [$2]}},\n
+"""
