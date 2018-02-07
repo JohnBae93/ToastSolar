@@ -4,9 +4,8 @@ from collections import deque
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
-from keras import backend as K
 
-from deeplearning.toast_user_environment import UserEnvironment
+from deeplearning.user_network.toast_user_environment import UserEnvironment
 
 iteration = 5000
 
@@ -19,7 +18,7 @@ class DQN:
         self.gamma = 0.95  # 미래 보상 감가, discount rate
         self.epsilon = 1.0  # 새로운 탐색, exploration rate
         self.epsilon_min = 0.01
-        self.epsion_decay = 0.99
+        self.epsilon_decay = 0.99
         self.learning_rate = 0.001
         self.main_model = self.build_model()
         self.target_model = self.build_model()
@@ -56,7 +55,7 @@ class DQN:
             self.main_model.fit(state, target)
 
         if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsion_decay
+            self.epsilon *= self.epsilon_decay
 
     def update_target_model(self):
         # copy weights from model to target_model

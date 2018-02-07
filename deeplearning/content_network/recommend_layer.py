@@ -21,9 +21,10 @@ for line in data[1:]:
     word_vectors[word] = np.array([
         float(i) for i in vec.split()
     ], dtype='float32')
-print(word)
+
 E = np.zeros(shape=(int(samples), int(dim)), dtype='float32')
 word_index = list(word_vectors.keys())
+
 for ix in range(len(word_index)):
     word = word_index[ix]
     #     word_encode = word_index[ix].encode(('utf-8'))
@@ -35,6 +36,7 @@ window_size = 10000
 embedding = Embedding(
     100,
     32,
+    weights=[E],
     input_length=window_size,
     trainable=False
 )
@@ -44,7 +46,6 @@ embedding = Embedding(
 trained_model = FastText.load_fasttext_format('data_noun_token')
 
 input_train = []
-
 
 fin = open('data_noun_token.txt', 'r')
 lines = fin.readlines()
@@ -60,7 +61,7 @@ for line in lines:
 fin.close()
 
 input_train = pad_sequences(input_train, maxlen=int(100))
-#input_train = np.array(input_train)
+# input_train = np.array(input_train)
 print(input_train.shape)
 # print(input_train[0])
 
@@ -79,24 +80,22 @@ fbout.close()
 print(output_train.shape)
 print(output_train[0:2])
 
-
 model = Sequential()
 model.add(embedding)
-model.add(Conv1D(64, 3, padding='same', activation = 'relu'))
-model.add(Conv1D(32, 3, padding='same', activation = 'relu'))
-model.add(Conv1D(16, 3, padding='same', activation = 'relu'))
+model.add(Conv1D(64, 3, padding='same', activation='relu'))
+model.add(Conv1D(32, 3, padding='same', activation='relu'))
+model.add(Conv1D(16, 3, padding='same', activation='relu'))
 model.add(Flatten())
 model.add(Dropout(0.2))
-model.add(Dense(180,activation='relu'))
+model.add(Dense(180, activation='relu'))
 model.add(Dropout(0.2))
-model.add(Dense(29,activation='sigmoid'))
+model.add(Dense(29, activation='sigmoid'))
 model.compile(loss=losses.categorical_crossentropy,
               optimizer='adam',
               metrics=['accuracy'])
 
 model.fit(input_train, output_train,
           batch_size=32, epochs=29, verbose=1)
-
 
 trained_model = FastText.load_fasttext_format('data_noun_token')
 
