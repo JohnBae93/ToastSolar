@@ -10,7 +10,7 @@ labelling: on-hot
 => [전공, 학년, 재학] / 17+9+4 = 30개
 
 2.Property -> 이 글이 어떤 속성을 가지고 있는가
-[장학금, 대외활동, 대학원, 취업, 인턴, 학사일정, 특강, 교환학생, 기타] 9
+[장학금, 대외활동, 대학원, 취업, 인턴, 학사일정, 특강, 교환학생, 기타] 13
 """
 import re
 
@@ -48,22 +48,31 @@ def check_keywords(data, line):
 
     for keyword in data["keywords"]["list"]:
         if diff_mode == "EXACT":
-            return keyword in line
+            if keyword in line:
+                return True
         elif diff_mode == "INCLUDE_LETTER":
             new_line = "".join(p_match_word.findall(line))
             new_keyword = "".join(p_match_word.findall(keyword))
-            return new_keyword in new_line
-
+            if new_keyword in new_line:
+                return True
     return False
 
 
 # dictionary data
 belong_data = load_data(belong_json_file)
 property_data = load_data(property_json_file)
+#
+# print(belong_data)
+# print(property_data)
 
-# print(belong_dict)
-print(tuple(belong_data))
-print(tuple(property_data))
+for belong in belong_data:
+    print(belong["label"], end=",")
+print()
+for property in property_data:
+    print(property["label"], end=",")
+print()
+
+
 
 # print(len(belong_label))
 input_file = open('../data.txt', 'r')
@@ -94,33 +103,6 @@ input_file.close()
 belong_file.close()
 property_file.close()
 
-
-
-'''Property'''
-# fr = open('../data.txt', 'r')
-# fbw = open('../data_belong_label.txt', 'w')
-# fpw = open('../data_property_label.txt', 'w')
-#
-# # lists = [1, 2, 3]
-# # fw.write(" ".join(str(i) for i in lists))
-#
-# lines = fr.readlines()
-# print(len(lines))
-# for line in lines:
-#     label_belong = np.zeros(29, dtype=np.uint8)
-#     label_property = np.zeros(9, dtype=np.uint8)
-#
-#     url = line.split(" ")[0]
-#
-#
-#     fbw.write(' '.join(str(i) for i in label_belong))
-#     fbw.write('\n')
-#     fpw.write(' '.join(str(i) for i in label_property))
-#     fpw.write('\n')
-#
-# fr.close()
-# fbw.close()
-# fpw.close()
 
 
 

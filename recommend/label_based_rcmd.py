@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import json
+import re
 
 major_urls = ["scos.skku", "liberalarts.skku", "law.skku", "sscience.skku", "ecostat.skku",
               "biz.skku", "coe.skku", "art.skku", "cscience.skku", "icc.skku", "cs.skku",
@@ -8,9 +10,20 @@ major_urls = ["scos.skku", "liberalarts.skku", "law.skku", "sscience.skku", "eco
 major_names = ['유학', '문과', '법과', '사회과학', '경제', '경영', '사범', '예술', '자연과학', '정보통신', '소프트웨어', '공과', '약학', '생명공학', '스포츠과학',
                '의과', '융합']
 
+belong_json_file = '../content_belong_label_keyword.json'
+property_json_file = '../content_property_label_keyword.json'
+data_file = '../data_small.txt'
+user_file = '../users.txt'
 
 def pearson_similarity(vector1, vector2):
     return np.corrcoef(vector1, vector2)[0][1]
+
+
+def cosine_similarity(vector1, vector2):
+    vector1_len = np.linalg.norm(vector1)
+    vector2_len = np.linalg.norm(vector2)
+
+    return np.dot(vector1, vector2) / (vector1_len * vector2_len)
 
 
 def if_letters_in_content(letters, content):
@@ -19,199 +32,151 @@ def if_letters_in_content(letters, content):
     return False
 
 
+def load_data(filename):
+    file_content = open(filename).read()
+    data_list = json.loads(file_content)
+    data_list.sort(key=lambda x: x["label"])
+    return data_list
+
+
 class Curation:
-    def __init__(self, _content):
-        self.belong_label = np.zeros(29, dtype=np.float32)
-        self.property_label = np.zeros(9, dtype=np.float32)
-        self.content = _content
-        self.url = _content.split(" ")[0]
+    def __init__(self, belong_data, property_data, line):
+        self.belong_label = np.zeros(len(belong_data), dtype=np.uint8)
+        self.property_label = np.zeros(len(property_data), dtype=np.uint8)
 
-        self.labelling_major()
-        self.labelling_semester()
-        self.labelling_attend()
+        self._labelling(belong_data, property_data, line)
+        self.label = np.concatenate((self.belong_label, self.property_label))
 
-        self.labeling_scholarship()
-        self.labelling_contest()
-        self.labelling_graduated()
-        self.labelling_job()
-        self.labelling_intern()
-        self.labelling_schedule()
-        self.labelling_lecture()
-        self.labelling_etc()
-
-    def labelling_major(self):
-        # [1] url 링크로 소속 전공 판별
-        for i, major in enumerate(major_urls, 0):
-            if major in self.url:
+    def _labelling(self, belong_data, property_data, line):
+        for i, data in enumerate(belong_data):
+            if self._check_keywords(data, line):
                 self.belong_label[i] = 1
-                break
 
-        # [2] 글 내용으로 판별
+        for i, data in enumerate(property_data):
+            if self._check_keywords(data, line):
+                self.property_label[i] = 1
 
-    def labelling_semester(self):
-        letters = ("hakbu.skku", "1학년", "신입생", "새내기", "전공진입", "전공 진입")
-        if if_letters_in_content(letters, self.content):
-            self.belong_label[17] = 1
-            self.belong_label[18] = 1
+    def _check_keywords(self, data, line):
+        try:
+            diff_mode = data["keywords"]["type"]
+        except Exception as e:
+            print(data)
+            raise Exception("Cannot read keyword type at data {}".format(data))
 
-        letters = ("2학년", "3학기", "4학기")
-        if if_letters_in_content(letters, self.content):
-            self.belong_label[19] = 1
-            self.belong_label[20] = 1
+        p_match_word = re.compile(r"[가-힣A-Za-z0-9]")
 
-        letters = ("3학년", "5학기", "6학기", "편입")
-        if if_letters_in_content(letters, self.content):
-            self.belong_label[21] = 1
-            self.belong_label[22] = 1
+        for keyword in data["keywords"]["list"]:
+            if diff_mode == "EXACT":
+                if keyword in line:
+                    return True
+            elif diff_mode == "INCLUDE_LETTER":
+                new_line = "".join(p_match_word.findall(line))
+                new_keyword = "".join(p_match_word.findall(keyword))
+                if new_keyword in new_line:
+                    return True
+        return False
 
-        letters = ("졸업", "4학년", "7학기", "8학기")
-        if if_letters_in_content(letters, self.content):
-            self.belong_label[23] = 1
-            self.belong_label[24] = 1
-
-        letters = ("초과 학기", "초과학기", "졸업유예", "졸업 유예", "수료")
-        if if_letters_in_content(letters, self.content):
-            self.belong_label[25] = 1
-
-    def labelling_attend(self):
-        if "졸업" in self.content:
-            self.belong_label[26] = 1
-            self.belong_label[28] = 1
-        elif "복학" in self.content:
-            self.belong_label[27] = 1
-        else:
-            pass
-
-    def labeling_scholarship(self):
-        letters = ("장학", "재단", "대출", "학자금")
-        if if_letters_in_content(letters, self.content):
-            self.property_label[0] = 1
-
-    def labelling_contest(self):
-        letters = ("대회", "캠프", "경진", "창업", "페스티벌", "아이디어", "봉사", "참가", "공모", "대외활동")
-        if if_letters_in_content(letters, self.content):
-            self.property_label[1] = 1
-
-    def labelling_graduated(self):
-        letters = ("대학원", "석사", "박사", "석박", "학석")
-        if if_letters_in_content(letters, self.content):
-            self.property_label[2] = 1
-
-    def labelling_job(self):
-        letters = ("취업", "채용", "공채", "특채", "경력")
-        if if_letters_in_content(letters, self.content):
-            self.property_label[3] = 1
-
-    def labelling_intern(self):
-        letters = ("채용형", "인턴", "intern")
-        if if_letters_in_content(letters, self.content):
-            self.property_label[4] = 1
-
-    def labelling_schedule(self):
-        letters = ("신청", "일정", "복학", "기간", "강의평가", "기한", "학사", "수강신청", "졸업")
-        if if_letters_in_content(letters, self.content):
-            self.property_label[5] = 1
-
-    def labelling_lecture(self):
-        letters = ("특강", "설명회", "세미나", "콜로키움", "발표", "박람회")
-        if if_letters_in_content(letters, self.content):
-            self.property_label[6] = 1
-
-    def labelling_exchangeself(self):
-        letters = ("교환학생", "수학생", "파견", "유학")
-        if if_letters_in_content(letters, self.content):
-            self.property_label[7] = 1
-
-    def labelling_etc(self):
-        for item in self.property_label:
-            if item == 1:
-                return
-        self.property_label[8] = 1
+    def __str__(self):
+        return " ".join(self.label)
 
 
-# belong [1학기, 2학기, 3학기, 4학기, 5학기, 6학기, 7학기, 8학기, 초과학기] 17~25
-# property [장학금, 대외활동, 대학원, 취업, 인턴, 학사일정, 특강, 교환학생, 기타] 0~8
 class User:
-    def __init__(self, _majors, _semester, _attend):
-        self.belong_label = np.zeros(29, dtype=np.float32)
-        self.property_label = np.zeros(9, dtype=np.float32)
+    def __init__(self, _majors, _semester, _attend, _gender, _label_list):
+        self.label = np.zeros(len(_label_list), dtype=np.float32)
 
         self.majors = _majors
         self.semester = int(_semester)
         self.attend = _attend
+        self.gender = _gender
 
-        self.labelling_major()
-        self.labelling_semester()
-        self.labelling_attend()
+        self.labelling_belong(_label_list)
+        self.labeling_property(_label_list)
 
-        self.labeling_property()
-
-    def labelling_major(self):
+    def labelling_belong(self, _label_list):
         for major in self.majors:
             for name in major_names:
                 if name in major:
-                    self.belong_label[major_names.index(name)] = 1
+                    self.label[_label_list.index(name)] = 1
 
-    def labelling_semester(self):
-        if self.semester <= 8 and self.semester >= 1:
-            self.belong_label[int(self.semester) + 16] = 1
+        if 1 <= self.semester <= 8:
+            self.label[_label_list.index("{}학기".format(self.semester))] = 1
         else:
-            self.belong_label[25] = 1
+            self.label[_label_list.index("초과학기")] = 1
 
-    def labelling_attend(self):
         if self.attend == '예':
-            self.belong_label[26] = 1
+            self.label[_label_list.index("재학생")] = 1
         elif self.attend == '아니오':
-            self.belong_label[27] = 1
+            self.label[_label_list.index("휴학생")] = 1
 
         if self.semester >= 7:
-            self.belong_label[28] = 1
+            self.label[_label_list.index("초과학기")] = 1
 
-    def labeling_property(self):
+    def labeling_property(self, _label_list):
         # 1학년
         if self.semester == 1 or self.semester == 2:
-            self.property_label[5] = 1
-            self.property_label[8] = 1
+            self.label[_label_list.index("학사일정")] = 1
+            self.label[_label_list.index("여행")] = 1
+            self.label[_label_list.index("국내봉사")] = 1
+            self.label[_label_list.index("해외봉사")] = 1
+            self.label[_label_list.index("기자단")] = 1
         # 2학년
         elif self.semester == 3 or self.semester == 4:
-            self.property_label[0] = 1
-            self.property_label[1] = 1
-            self.property_label[5] = 1
-            self.property_label[6] = 1
+            self.label[_label_list.index("장학금")] = 1
+            self.label[_label_list.index("대외활동")] = 1
+            self.label[_label_list.index("학사일정")] = 1
+            self.label[_label_list.index("강연")] = 1
+            self.label[_label_list.index("여행")] = 1
+            self.label[_label_list.index("국내봉사")] = 1
+            self.label[_label_list.index("해외봉사")] = 1
+            self.label[_label_list.index("기자단")] = 1
         # 3학년
         elif self.semester == 5 or self.semester == 6:
-            self.property_label[0] = 1
-            self.property_label[1] = 1
-            self.property_label[5] = 1
-            self.property_label[6] = 1
-            self.property_label[7] = 1
+            self.label[_label_list.index("장학금")] = 1
+            self.label[_label_list.index("대외활동")] = 1
+            self.label[_label_list.index("학사일정")] = 1
+            self.label[_label_list.index("강연")] = 1
+            self.label[_label_list.index("교환학생")] = 1
+            self.label[_label_list.index("기자단")] = 1
+            self.label[_label_list.index("마케터")] = 1
+            self.label[_label_list.index("인턴")] = 1
         # 4학년
         elif self.semester == 7 or self.semester == 8:
-            self.property_label[2] = 1
-            self.property_label[3] = 1
-            self.property_label[4] = 1
-            self.property_label[5] = 1
-
+            self.label[_label_list.index("대외활동")] = 1
+            self.label[_label_list.index("대학원")] = 1
+            self.label[_label_list.index("취업")] = 1
+            self.label[_label_list.index("인턴")] = 1
+            self.label[_label_list.index("학사일정")] = 1
         else:
-            self.property_label[3] = 1
-            self.property_label[4] = 1
-            self.property_label[5] = 1
+            self.label[_label_list.index("대학원")] = 1
+            self.label[_label_list.index("취업")] = 1
+            self.label[_label_list.index("인턴")] = 1
 
 
-fr = open('../data.txt', 'r', encoding='utf-8')
+'''Curation Labelling'''
+belong_data = load_data(filename=belong_json_file)
+property_data = load_data(filename=property_json_file)
 
+label_list = []
+for belong in belong_data:
+    label_list.append(belong["label"])
+for property in property_data:
+    label_list.append(property["label"])
+print(label_list)
+label_list = tuple(label_list)
+
+
+fr = open(data_file, 'r')
 data_lines = fr.readlines()
+
 curations = []
 for line in data_lines:
-    curation = Curation(line)
+    curation = Curation(belong_data, property_data, line)
     curations.append(curation)
 fr.close()
-# print(lines[2])
-# np.set_printoptions(threshold=np.nan)
-# print(curations[2].belong_label)
-# print(curations[2].property_label)
 
-fr = open('users', 'r')
+
+'''User Labeling'''
+fr = open(user_file, 'r')
 user_lines = fr.readlines()
 users = []
 for line in user_lines:
@@ -225,14 +190,23 @@ for line in user_lines:
             user_attend = '예'
         else:
             user_attend = '아니오'
+        if content[4] == '남자':
+            user_gender = 'M'
+        else:
+            user_gender = 'F'
+
     else:
         user_semester = content[1]
         if content[2] == '재학':
             user_attend = '예'
         else:
             user_attend = '아니오'
+        if content[3] == '남자':
+            user_gender = 'M'
+        else:
+            user_gender = 'F'
 
-    user = User(user_majors, user_semester, user_attend)
+    user = User(user_majors, user_semester, user_attend, user_gender, label_list)
     users.append(user)
 fr.close()
 
@@ -242,28 +216,27 @@ curation_num = len(curations)
 print((user_num, curation_num))
 # print(user)
 
-print(users[0].property_label)
+print(users[0].label)
 
 similarity_matrix = np.zeros((user_num, curation_num), dtype=np.float32)
 print(similarity_matrix.shape)
-i = 0
-j = 0
-for user in users:
-    for curation in curations:
-        similarity_matrix[i][j] = pearson_similarity(np.concatenate((user.belong_label, user.property_label)),
-                                                     np.concatenate((curation.belong_label, curation.property_label)))
-        j = j + 1
-    j = 0
-    i = i + 1
+
+for i, user in enumerate(users):
+    for j, curation in enumerate(curations):
+        similarity_matrix[i][j] = cosine_similarity(user.label,
+                                                     curation.label)
+
 
 for i in range(0, user_num):
+    print((similarity_matrix[i].max(), similarity_matrix[i].mean()))
     for j in range(0, curation_num):
         score = similarity_matrix[i][j]
-        if score < 0.7:
+        if score > 0.7:
             print("user : {} , curation : {}, score : {}, text : {} ".format(i + 1, j + 1, similarity_matrix[i][j],
                                                                              data_lines[j][12:40]))
 
-np.set_printoptions(threshold=np.nan)
+np.set_printoptions(threshold=5000, precision=2)
+print(similarity_matrix)
 print(similarity_matrix.mean())
 similarity_matrix_1d = similarity_matrix.reshape(user_num*curation_num)
 print("max : {}".format(similarity_matrix_1d.max()))
@@ -272,7 +245,3 @@ plt.plot(similarity_matrix, '.')
 plt.axis([0, 9, 0.4, 1])
 plt.show()
 # print(similarity_matrix)
-
-# tr  : movie_id, user_id, rating.
-model.fit([tr[:,0].reshape((L,1)), tr[:,1].reshape((L,1))], tr[:,2].reshape((L,1)),
-          batch_size=24000, nb_epoch=42, validation_data=([ ts[:,0].reshape((M,1)), ts[:,0].reshape((M,1))], ts[:,2].reshape((M,1))))
