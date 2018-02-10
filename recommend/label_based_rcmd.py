@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import json
 import re
+from keras import models
+from konlpy.tag import Twitter
+from gensim.models import KeyedVectors
 
 major_urls = ["scos.skku", "liberalarts.skku", "law.skku", "sscience.skku", "ecostat.skku",
               "biz.skku", "coe.skku", "art.skku", "cscience.skku", "icc.skku", "cs.skku",
@@ -46,6 +49,7 @@ class Curation:
 
         self._labelling(belong_data, property_data, line)
         self.label = np.concatenate((self.belong_label, self.property_label))
+        self._predict(line)
 
     def _labelling(self, belong_data, property_data, line):
         for i, data in enumerate(belong_data):
@@ -75,6 +79,22 @@ class Curation:
                 if new_keyword in new_line:
                     return True
         return False
+
+    def _predict(self, line):
+        if self.label.max() <= 0:
+            model = models.load_model('../toast_lstm_except_1word.h5')
+            twiter = Twitter()
+            trained_matrix = KeyedVectors.load_word2vec_format('../data_noun_fasttext.vec', encoding='utf-8')
+            input = np.zeros((1, 100), dtype=np.float32)
+            for word in twiter.nouns(line):
+                try:
+                    input = np.add(input, trained_matrix[word])
+                except:
+                    pass
+            input = input.reshape(1,1,100)
+            self.label = model.predict(input).reshape(43,)
+        else:
+            return
 
     def __str__(self):
         return " ".join(self.label)
@@ -110,6 +130,7 @@ class User:
 
         if self.semester >= 7:
             self.label[_label_list.index("초과학기")] = 1
+
 
     def labeling_property(self, _label_list):
         # 1학년
@@ -216,27 +237,27 @@ curation_num = len(curations)
 print((user_num, curation_num))
 # print(user)
 
-print(users[0].label)
+# print(users[0].label)
 
 similarity_matrix = np.zeros((user_num, curation_num), dtype=np.float32)
 print(similarity_matrix.shape)
 
 for i, user in enumerate(users):
     for j, curation in enumerate(curations):
-        similarity_matrix[i][j] = cosine_similarity(user.label,
+        similarity_matrix[i][j] = pearson_similarity(user.label,
                                                      curation.label)
 
 
 for i in range(0, user_num):
-    print((similarity_matrix[i].max(), similarity_matrix[i].mean()))
+    print(("user {}:".format(i + 1), similarity_matrix[i].max(), np.argmax(similarity_matrix[i]) + 1))
     for j in range(0, curation_num):
         score = similarity_matrix[i][j]
-        if score > 0.7:
+        if score > 0.6:
             print("user : {} , curation : {}, score : {}, text : {} ".format(i + 1, j + 1, similarity_matrix[i][j],
                                                                              data_lines[j][12:40]))
 
 np.set_printoptions(threshold=5000, precision=2)
-print(similarity_matrix)
+# print(similarity_matrix)
 print(similarity_matrix.mean())
 similarity_matrix_1d = similarity_matrix.reshape(user_num*curation_num)
 print("max : {}".format(similarity_matrix_1d.max()))

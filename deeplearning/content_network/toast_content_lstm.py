@@ -90,7 +90,7 @@ i = 0
 while i < x_len:
     x = x_train[i:i+NUM_ONCE_TRAIN]
     y = y_train[i:i+NUM_ONCE_TRAIN]
-    model.fit(x, y, batch_size=16, epochs=3, verbose=1)
+    model.fit(x, y, batch_size=16, epochs=3, verbose=1, validation_data=(x_test, y_test))
     print(i)
     i += NUM_ONCE_TRAIN
 # model.save('../../toast_lstm.h5')

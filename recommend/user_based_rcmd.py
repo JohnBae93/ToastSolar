@@ -9,12 +9,12 @@ def cosine_similarity(vector1, vector2):
 
     return np.dot(vector1, vector2) / (vector1_len * vector2_len)
 
-print(cosine_similarity(np.array([1, 0]), np.array([-1, 0])))
-
 
 def pearson_similarity(vector1, vector2):
     return np.corrcoef(vector1, vector2)[0][1]
 
+
+print(cosine_similarity(np.array([1, 0]), np.array([-1, 0])))
 
 num_contents = 10
 num_users = 10
