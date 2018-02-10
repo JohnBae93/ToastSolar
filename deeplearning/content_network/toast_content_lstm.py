@@ -38,7 +38,7 @@ for line in lines:
 # print(output_train)
 output_train = np.array(output_train, dtype=np.int8)
 output_train = np.reshape(output_train, (length_data, length_label))
-print(output_train.shape)
+print("output data shape {}".format(output_train.shape))
 fb.close()
 fp.close()
 
@@ -47,32 +47,31 @@ fp.close()
 f = open(input_file, 'r')
 lines = f.readlines()
 f.close()
-input_train = []
-print(len(lines))
-maxlen = 0
+input_train = np.array([])
+len_line = len(lines)
+print("data line length: {}".format(len_line))
+
 for line in lines:
     # print(line[0:5])
-    length = 0
-    word_vector = []
+    word_vector = np.zeros((1,100), dtype=np.float32)
     for word in line.split():
         try:
             if len(word) == 1:    # 한글자 단어 제외
                 continue
-            length += 1
             # word_vector = np.append(word_vector, trained_matrix[word])
-            word_vector.append(trained_matrix[word])
+            word_vector = np.add(word_vector, trained_matrix[word])
         except:
             pass
-    maxlen = max(maxlen, length)
-    input_train.append(word_vector)
+    input_train = np.append(input_train, word_vector)
     # input_train = np.append(input_train, word_vector)
-print(maxlen)
 
-
+input_train = input_train.reshape((len_line, 1, 100))
+print(input_train.shape)
 
 '''MODEL'''
 model = Sequential()
-model.add(LSTM(120, input_shape=(None, 100)))
+model.add(LSTM(120, input_shape=(1, 100)))
+model.add(Dense(80, activation='relu'))
 model.add(Dense(43, activation='sigmoid'))
 model.compile(loss='binary_crossentropy',
               optimizer='adam',
@@ -91,14 +90,11 @@ i = 0
 while i < x_len:
     x = x_train[i:i+NUM_ONCE_TRAIN]
     y = y_train[i:i+NUM_ONCE_TRAIN]
-    # x = pad_sequences(x, maxlen=500)
-    # x = x.reshape(x.shape[0],500,100)
     model.fit(x, y, batch_size=16, epochs=3, verbose=1)
     print(i)
     i += NUM_ONCE_TRAIN
-
-# x_test = pad_sequences(x_test, maxlen=500)
-# x_test = x_test.reshape(x_test.shape[0], 500, 100)
+# model.save('../../toast_lstm.h5')
+model.save('../../toast_lstm_except_1word.h5')
 score = model.evaluate(x_test, y_test)
 print(score)
 

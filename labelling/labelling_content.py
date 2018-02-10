@@ -76,8 +76,8 @@ print()
 
 # print(len(belong_label))
 input_file = open('../data.txt', 'r')
-belong_file = open('../data_belong_label.txt', 'w')
-property_file = open('../data_property_label.txt', 'w')
+# belong_file = open('../data_belong_label.txt', 'w')
+# property_file = open('../data_property_label.txt', 'w')
 
 lines = input_file.readlines()
 
@@ -94,14 +94,14 @@ for line in lines:
         if check_keywords(data, line):
             property_label[i] = 1
 
-    belong_file.write(' '.join(str(i) for i in belong_label))
-    belong_file.write('\n')
-    property_file.write(' '.join(str(i) for i in property_label))
-    property_file.write('\n')
-
-input_file.close()
-belong_file.close()
-property_file.close()
+#     belong_file.write(' '.join(str(i) for i in belong_label))
+#     belong_file.write('\n')
+#     property_file.write(' '.join(str(i) for i in property_label))
+#     property_file.write('\n')
+#
+# input_file.close()
+# belong_file.close()
+# property_file.close()
 
 
 
